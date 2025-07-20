@@ -1,6 +1,5 @@
 from features.steps.note_api import NoteApiClient
 
-
 def before_scenario(context, scenario):
     api_client = NoteApiClient()
     response = api_client.get_all_notes()

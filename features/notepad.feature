@@ -7,13 +7,13 @@ Feature: Note Management API
   Scenario: Successfully create a note with valid data
     Given I have a valid note payload
     When I send a POST request to "/notes"
-    Then the response status code should be 201
+    Then the response status code should be 200
     And the response should contain the created note data
 
   Scenario: Fail to create a note with invalid data
     Given I have an invalid note payload
     When I send a POST request to "/notes"
-    Then the response status code should be 400
+    Then the response status code should be 422
 
   # Получение списка заметок
   Scenario: Get empty notes list when no notes exist

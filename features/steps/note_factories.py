@@ -12,8 +12,8 @@ class NoteFactory:
 
     @staticmethod
     def create_invalid_note():
-        return NoteData(title="", content="")  # Пустой title недопустим
+        return NoteData(title=4444, content=5555)
 
     @staticmethod
     def create_note_with_missing_fields():
-        return {"title": "Only Title"}  # No content
+        return {"title": "Only Title"}

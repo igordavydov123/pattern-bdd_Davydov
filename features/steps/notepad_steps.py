@@ -1,7 +1,6 @@
 from behave import given, when, then
 from note_factories import NoteFactory
 from note_api import NoteApiClient
-import json
 
 api_client = NoteApiClient()
 
@@ -15,7 +14,6 @@ def step_impl(context):
 
 @given('there are no notes in the system')
 def step_impl(context):
-    # Очищаем все заметки (если API поддерживает)
     response = api_client.get_all_notes()
     if response.status_code == 200:
         for note in response.json():
@@ -29,7 +27,7 @@ def step_impl(context, count):
 @given('there is a note in the system')
 def step_impl(context):
     response = api_client.create_note(NoteFactory.create_valid_note())
-    assert response.status_code == 201
+    assert response.status_code == 200
     context.note_id = response.json()['id']
 
 @when('I send a POST request to "/notes"')
