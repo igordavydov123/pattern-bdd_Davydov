@@ -1,134 +1,104 @@
-import requests
 from behave import given, when, then
+from note_factories import NoteFactory
+from note_api import NoteApiClient
 import json
 
-def create_note(context, title, content):
-    payload = {"title": title, "content": content}
-    response = requests.post(
-        f"{context.base_url}/notes",
-        headers=context.headers,
-        data=json.dumps(payload),
-    )
-    if response.status_code == 201:
-        note_id = response.json()["id"]
-        context.notes.append(note_id)
-    return response
+api_client = NoteApiClient()
 
-# Note creation
 @given('I have a valid note payload')
 def step_impl(context):
-    context.payload = {"title": "Test Note", "content": "This is a test note"}
+    context.note_data = NoteFactory.create_valid_note()
 
 @given('I have an invalid note payload')
 def step_impl(context):
-    context.payload = {"title": "", "content": ""}  # Invalid empty data
+    context.note_data = NoteFactory.create_invalid_note()
+
+@given('there are no notes in the system')
+def step_impl(context):
+    # Очищаем все заметки (если API поддерживает)
+    response = api_client.get_all_notes()
+    if response.status_code == 200:
+        for note in response.json():
+            api_client.delete_note(note['id'])
+
+@given('there are {count} notes in the system')
+def step_impl(context, count):
+    for _ in range(int(count)):
+        api_client.create_note(NoteFactory.create_valid_note())
+
+@given('there is a note in the system')
+def step_impl(context):
+    response = api_client.create_note(NoteFactory.create_valid_note())
+    assert response.status_code == 201
+    context.note_id = response.json()['id']
 
 @when('I send a POST request to "/notes"')
 def step_impl(context):
-    context.response = requests.post(
-        f"{context.base_url}/notes",
-        headers=context.headers,
-        data=json.dumps(context.payload))
+    context.response = api_client.create_note(context.note_data)
+
+@when('I send a GET request to "/notes"')
+def step_impl(context):
+    context.response = api_client.get_all_notes()
+
+@when('I get the note by its ID')
+def step_impl(context):
+    context.response = api_client.get_note_by_id(context.note_id)
+
+@when('I get the note with ID "{note_id}"')
+def step_impl(context, note_id):
+    context.response = api_client.get_note_by_id(note_id)
+
+@when('I update the note with valid data')
+def step_impl(context):
+    update_data = NoteFactory.create_valid_note()
+    update_data.title = "Updated Title"
+    context.response = api_client.update_note(context.note_id, update_data)
+
+@when('I update the note with ID "{note_id}"')
+def step_impl(context, note_id):
+    update_data = NoteFactory.create_valid_note()
+    context.response = api_client.update_note(note_id, update_data)
+
+@when('I delete the note by its ID')
+def step_impl(context):
+    context.response = api_client.delete_note(context.note_id)
+
+@when('I delete the note with ID "{note_id}"')
+def step_impl(context, note_id):
+    context.response = api_client.delete_note(note_id)
 
 @then('the response status code should be {status_code}')
 def step_impl(context, status_code):
-    assert context.response.status_code == int(status_code), \
-        f"Expected {status_code}, got {context.response.status_code}"
+    assert context.response.status_code == int(status_code)
 
 @then('the response should contain the created note data')
 def step_impl(context):
     response_data = context.response.json()
-    assert "id" in response_data, "Response missing note ID"
-    assert response_data["title"] == context.payload["title"]
-    assert response_data["content"] == context.payload["content"]
-
-# Getting notes list
-@given('there are no notes in the system')
-def step_impl(context):
-    # Clean up any existing notes
-    response = requests.get(f"{context.base_url}/notes")
-    if response.status_code == 200:
-        for note in response.json():
-            requests.delete(f"{context.base_url}/notes/{note['id']}")
-
-@given('there are 2 notes in the system')
-def step_impl(context):
-    # Create 2 test notes
-    create_note(context, "Note 1", "Content 1")
-    create_note(context, "Note 2", "Content 2")
-
-@when('I send a GET request to "/notes"')
-def step_impl(context):
-    context.response = requests.get(f"{context.base_url}/notes")
+    assert 'id' in response_data
+    assert response_data['title'] == context.note_data.title
+    assert response_data['content'] == context.note_data.content
 
 @then('the response should be an empty list')
 def step_impl(context):
-    assert context.response.json() == [], "Response should be empty list"
+    assert context.response.json() == []
 
 @then('the response should contain {count} notes')
 def step_impl(context, count):
-    assert len(context.response.json()) == int(count), \
-        f"Expected {count} notes, got {len(context.response.json())}"
-
-# Getting note by ID
-@given('there is a note in the system')
-def step_impl(context):
-    context.response = create_note(context, "Test Note", "Test Content")
-    context.note_id = context.response.json()["id"]
-
-@when('I get the note by its ID')
-def step_impl(context):
-    context.response = requests.get(
-        f"{context.base_url}/notes/{context.note_id}")
-
-@when('I get the note with ID "{note_id}"')
-def step_impl(context, note_id):
-    context.response = requests.get(f"{context.base_url}/notes/{note_id}")
+    assert len(context.response.json()) == int(count)
 
 @then('the response should contain the note data')
 def step_impl(context):
     response_data = context.response.json()
-    assert "id" in response_data, "Response missing note ID"
-    assert "title" in response_data, "Response missing title"
-    assert "content" in response_data, "Response missing content"
-
-# Updating a note
-@when('I update the note with valid data')
-def step_impl(context):
-    context.update_payload = {
-        "title": "Updated Title",
-        "content": "Updated Content"
-    }
-    context.response = requests.put(
-        f"{context.base_url}/notes/{context.note_id}",
-        headers=context.headers,
-        data=json.dumps(context.update_payload))
-
-@when('I update the note with ID "{note_id}"')
-def step_impl(context, note_id):
-    context.response = requests.put(
-        f"{context.base_url}/notes/{note_id}",
-        headers=context.headers,
-        data=json.dumps({"title": "Test", "content": "Test"}))
+    assert 'id' in response_data
+    assert 'title' in response_data
+    assert 'content' in response_data
 
 @then('the response should contain updated data')
 def step_impl(context):
     response_data = context.response.json()
-    assert response_data["title"] == context.update_payload["title"]
-    assert response_data["content"] == context.update_payload["content"]
-
-# Deleting a note
-@when('I delete the note by its ID')
-def step_impl(context):
-    context.response = requests.delete(
-        f"{context.base_url}/notes/{context.note_id}")
-
-@when('I delete the note with ID "{note_id}"')
-def step_impl(context, note_id):
-    context.response = requests.delete(f"{context.base_url}/notes/{note_id}")
+    assert response_data['title'] == "Updated Title"
 
 @then('the note should be deleted')
 def step_impl(context):
-    # Verify the note no longer exists
-    response = requests.get(f"{context.base_url}/notes/{context.note_id}")
-    assert response.status_code == 404, "Note was not deleted"
+    response = api_client.get_note_by_id(context.note_id)
+    assert response.status_code == 404

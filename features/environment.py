@@ -1,11 +1,9 @@
-import requests
+from features.steps.note_api import NoteApiClient
+
 
 def before_scenario(context, scenario):
-    context.base_url = "http://127.0.0.1:8000/docs"
-    context.notes = []
-    context.headers = {"Content-Type": "application/json"}
-
-def after_scenario(context, scenario):
-    # Clean up created notes after each scenario
-    for note_id in context.notes:
-        requests.delete(f"{context.base_url}/notes/{note_id}")
+    api_client = NoteApiClient()
+    response = api_client.get_all_notes()
+    if response.status_code == 200:
+        for note in response.json():
+            api_client.delete_note(note['id'])
