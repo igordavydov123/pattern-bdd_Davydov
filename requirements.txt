@@ -1,3 +1,5 @@
-fastapi
+fastapi~=0.116.1
 uvicorn
-pydantic
+pydantic~=2.11.7
+requests~=2.32.4
+behave~=1.2.6
